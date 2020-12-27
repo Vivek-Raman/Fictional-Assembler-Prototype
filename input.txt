@@ -1,0 +1,24 @@
+﻿begin
+def a       (&vars + 20)
+def b       (&vars + 1)
+def host    (&vars + 2)
+
+# this is a comment
+
+ld 0
+sav a
+
+ld 1
+sav b
+
+ld a
+add b
+sav a
+
+tgl strmode
+ld 4.0.0.1\0
+sav host
+
+proc &ftable + 0, a, host
+
+end

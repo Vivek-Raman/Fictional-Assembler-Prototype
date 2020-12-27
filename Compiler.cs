@@ -8,27 +8,35 @@ namespace Compiler
     {
         private List<Command> commands = new List<Command>();
         private Data data = new Data();
+        private string accumulator;
+        private bool hasBegun = false;    // TODO: enforce begin/end check
 
-        public Compiler()
+        public Compiler(string accumulator = "")
         {
+            this.accumulator = accumulator;
             CreateCommands();
         }
 
         public void Compile(List<List<string>> input)
         {
-            foreach (List<string> line in input)
+            for (var lineCount = 0; lineCount < input.Count; lineCount++)
             {
-                ShowParseInfo(line);
+                List<string> line = input[lineCount];
+                // ShowParseInfo(line);
 
-                if (line[0].StartsWith("#"))
+                if (line[0].StartsWith('#') || line[0] == "")
                 {
-                    // # indicates a comment
-                    Console.WriteLine("comment!");
+                    // # indicates a comment, \n is newline
+                    // Console.WriteLine("comment!");
                     continue;
                 }
-                if (IsCommand(line[0], out int commandIndex))
+                else if (IsCommand(line[0], out int commandIndex))
                 {
                     ProcessCommand(commandIndex, line);
+                }
+                else
+                {
+                    Console.WriteLine($"-----\nUNIDENTIFIED TOKEN ON LINE {lineCount+1}: \"{line[0]}\"\n-----\n");
                 }
             }
         }
@@ -39,7 +47,7 @@ namespace Compiler
                 "begin", "Denotes the start of the module.",
                 line =>
                 {
-                    Console.WriteLine("begun!");
+                    hasBegun = true;
                     return 0;
                 }));
 
@@ -47,7 +55,7 @@ namespace Compiler
                 "end", "Denotes the end of the module.",
                 line =>
                 {
-                    Console.WriteLine("ended!");
+                    hasBegun = false;
                     return 0;
                 }));
 
@@ -76,11 +84,29 @@ namespace Compiler
                     }
                 }));
 
-            // TODO: turn this into a proc
             commands.Add(new Command(
-                "lsdefs", "",
+                "ld", "Loads a value into accumulator.",
                 line =>
                 {
+                    string expression = line[1];
+                    if (data.GetVariableValue(expression, out string value))
+                    {
+                        accumulator = value;
+                    }
+                    else
+                    {
+                        accumulator = expression;
+                    }
+
+                    return 0;
+                }));
+
+            commands.Add(new Command(
+                "sav", "Stores accumulated data into a memory address.",
+                line =>
+                {
+                    string varName = line[1];
+                    data.SetVariableValue(varName, accumulator);
 
                     return 0;
                 }));
@@ -89,6 +115,15 @@ namespace Compiler
             //     "", "",
             //     line =>
             //     {
+            //         return 0;
+            //     }));
+
+            // TODO: turn this into a proc
+            // commands.Add(new Command(
+            //     "lsdefs", "",
+            //     line =>
+            //     {
+            //
             //         return 0;
             //     }));
 
@@ -147,9 +182,9 @@ namespace Compiler
             {
                 Console.Write($"\"{line[i]}\" ");
             }
-            Console.WriteLine();
+            Console.WriteLine($"ACC = {accumulator}");
             // Console.WriteLine("----------");
-            // Console.WriteLine();
+            Console.WriteLine();
         }
 
         #endregion

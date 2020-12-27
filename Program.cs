@@ -17,7 +17,7 @@ namespace Compiler
             List<List<string>> input = new List<List<string>>();
             foreach (string line in File.ReadAllLines(args[0]))
             {
-                // regex removes extra spaces : https://stackoverflow.com/a/206946
+                // regex truncates extra spaces : https://stackoverflow.com/a/206946
                 List<string> toAdd = Regex.Replace(line, @"\s+", " ").
                     Split(" ").ToList();
                 input.Add(toAdd);

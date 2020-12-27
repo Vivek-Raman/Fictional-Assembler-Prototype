@@ -16,7 +16,8 @@ add b
 sav a
 
 tgl strmode
-ld 4.0.0.1\0
+# ld 4.0.0.1\0
+ld 4
 sav host
 
 proc &ftable + 0, a, host

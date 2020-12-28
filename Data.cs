@@ -12,7 +12,7 @@ namespace Compiler
             varsTable.Add(index, new Variable(varName));
         }
 
-        public bool GetVariableValue(string varName, out string value)
+        public bool TryGetVariableValue(string varName, out string value)
         {
             int varIndex = SearchVarsTable(varName);
             if (varIndex >= 0)
@@ -32,9 +32,13 @@ namespace Compiler
             {
                 varsTable[varIndex].SetValue(value);
             }
+            else
+            {
+                // TODO: fail condition
+            }
         }
 
-        public int SearchVarsTable(string token)
+        private int SearchVarsTable(string token)
         {
             foreach (var variable in varsTable)
             {

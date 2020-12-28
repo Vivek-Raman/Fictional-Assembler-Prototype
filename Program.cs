@@ -11,6 +11,7 @@ namespace Compiler
 
         static void Main(string[] args)
         {
+            Console.Clear();
             Compiler compiler = new Compiler();
 
             // get input

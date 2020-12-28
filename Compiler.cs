@@ -6,6 +6,11 @@ namespace Compiler
 {
     public class Compiler
     {
+        private const int FLAG_COUNT = 1;
+        private enum Flags
+        { NULL = -1, StringMode }
+
+        private bool[] flagSet = new bool[FLAG_COUNT];
         private List<Command> commands = new List<Command>();
         private Data data = new Data();
         private string accumulator;
@@ -26,7 +31,9 @@ namespace Compiler
 
                 if (line[0].StartsWith('#') || line[0] == "")
                 {
-                    // # indicates a comment, \n is newline
+                    // # indicates a comment, and \n is newline
+                    // these are ignored
+
                     // Console.WriteLine("comment!");
                     continue;
                 }
@@ -88,16 +95,7 @@ namespace Compiler
                 "ld", "Loads a value into accumulator.",
                 line =>
                 {
-                    string expression = line[1];
-                    if (data.GetVariableValue(expression, out string value))
-                    {
-                        accumulator = value;
-                    }
-                    else
-                    {
-                        accumulator = expression;
-                    }
-
+                    accumulator = ParseArguments(line[1]);
                     return 0;
                 }));
 
@@ -111,6 +109,57 @@ namespace Compiler
                     return 0;
                 }));
 
+            commands.Add(new Command(
+                "print", "Logs accumulator value to the terminal.",
+                line =>
+                {
+                    Console.WriteLine($"ACC : \"{accumulator}\"");
+                    return 0;
+                }));
+
+            commands.Add(new Command(
+                "add", "Adds a number to accumulator.",
+                line =>
+                {
+                    accumulator = (Convert.ToInt32(accumulator) +
+                                   Convert.ToInt32(ParseArguments(line[1]))
+                                   ).ToString();
+                    return 0;
+                }));
+
+
+            commands.Add(new Command(
+                "sub", "Subtracts a number from accumulator.",
+                line =>
+                {
+                    accumulator = (Convert.ToInt32(accumulator) -
+                                   Convert.ToInt32(ParseArguments(line[1]))
+                        ).ToString();
+                    return 0;
+                }));
+
+
+            commands.Add(new Command(
+                "mul", "Multiplies a number to accumulator.",
+                line =>
+                {
+                    accumulator = (Convert.ToInt32(accumulator) *
+                                   Convert.ToInt32(ParseArguments(line[1]))
+                        ).ToString();
+                    return 0;
+                }));
+
+
+            commands.Add(new Command(
+                "div", "Divides the accumulator by a given non-zero number.",
+                line =>
+                {
+                    int divisor = Convert.ToInt32(ParseArguments(line[1]));
+                    if (divisor == 0) return 1;
+                    accumulator = (Convert.ToInt32(accumulator) / divisor).ToString();
+                    return 0;
+                }));
+
             // commands.Add(new Command(
             //     "", "",
             //     line =>
@@ -118,14 +167,7 @@ namespace Compiler
             //         return 0;
             //     }));
 
-            // TODO: turn this into a proc
-            // commands.Add(new Command(
-            //     "lsdefs", "",
-            //     line =>
-            //     {
-            //
-            //         return 0;
-            //     }));
+            // TODO: procedures
 
             // commands.Add(new Command(
             //     "", "",
@@ -135,8 +177,18 @@ namespace Compiler
             //     }));
         }
 
+        private string ParseArguments(string token)
+        {
+            if (!flagSet[(int) Flags.StringMode] && data.TryGetVariableValue(token, out string value))
+            {
+                return value;
+            }
+
+            return token;
+        }
+
         // takes (&vars+20) and returns 20
-        private static int ProcessAddress(string token)
+        private int ProcessAddress(string token)
         {
             // TODO: swap "vars" for other base addresses, add enum for other bases
             Regex regex = new Regex(@"(.*)(&vars\+)(\d+)(.*)");
@@ -146,6 +198,7 @@ namespace Compiler
             return value;
         }
 
+        // tests if string is in command list
         private bool IsCommand(string token, out int index)
         {
             index = Command.commandList.IndexOf(token);
@@ -159,19 +212,6 @@ namespace Compiler
 
         #region Debugging Utilities
 
-        // private void ShowParseInfo(string token, List<string> line)
-        // {
-        //     Console.WriteLine("----------");
-        //     Console.Write($"Token: \"{token}\" in line: ");
-        //     for (int i = 0; i < line.Count; i++)
-        //     {
-        //         Console.Write($"{line[i]} ");
-        //     }
-        //     Console.WriteLine();
-        //     Console.WriteLine("----------");
-        //     Console.WriteLine();
-        // }
-
         private void ShowParseInfo(List<string> line)
         {
             // return;
@@ -182,7 +222,6 @@ namespace Compiler
             {
                 Console.Write($"\"{line[i]}\" ");
             }
-            Console.WriteLine($"ACC = {accumulator}");
             // Console.WriteLine("----------");
             Console.WriteLine();
         }

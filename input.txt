@@ -5,21 +5,29 @@ def host    (&vars + 2)
 
 # this is a comment
 
-ld 0
+ld 340
 sav a
 
-ld 1
+ld 30
 sav b
 
 ld a
 add b
-sav a
+print
 
-tgl strmode
-# ld 4.0.0.1\0
-ld 4
-sav host
+sub 10
+print
 
-proc &ftable + 0, a, host
+mul 2
+print
 
-end
+div 60
+print
+
+# # ld 4.0.0.1
+# ld 4
+# sav host
+#
+# proc &ftable + 0, a, host
+
+# end

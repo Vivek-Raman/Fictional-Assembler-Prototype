@@ -7,17 +7,17 @@ namespace Compiler
     {
         public static List<string> commandList = new List<string>();
 
-        public string command;
+        public string name;
         public string description;
         public Func<List<string>, int> action;
 
-        public Command(string command, string description, Func<List<string>, int> action)
+        public Command(string name, string description, Func<List<string>, int> action)
         {
-            this.command = command;
+            this.name = name;
             this.description = description;
             this.action = action;
 
-            commandList.Add(command);
+            commandList.Add(name);
         }
     }
 }

@@ -1,33 +1,33 @@
-﻿begin
-def a       (&vars + 20)
-def b       (&vars + 1)
-def host    (&vars + 2)
+﻿procdef omfg
+ld a
+mul 2
+sav a
+endproc
+
+procdef testproc
+ld a
+add 10
+sav a
+proc omfg
+endproc
+
+
+begin
+def a       (&vars + 1)
 
 # this is a comment
 
-ld 340
+ld 40
 sav a
-
-ld 30
-sav b
-
-ld a
-add b
 print
 
-sub 10
+proc testproc
 print
 
-mul 2
+proc testproc
 print
 
-div 60
+proc testproc
 print
 
-# # ld 4.0.0.1
-# ld 4
-# sav host
-#
-# proc &ftable + 0, a, host
-
-# end
+end

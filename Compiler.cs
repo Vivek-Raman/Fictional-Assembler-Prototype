@@ -4,247 +4,327 @@ using System.Text.RegularExpressions;
 
 namespace Compiler
 {
-    public class Compiler
+public class Compiler
+{
+    private const int FLAG_COUNT = 1;
+    private const int INTERNAL_FLAG_COUNT = 2;
+    private enum Flags
+    { NULL = -1, StringMode }
+    private enum InternalFlags
+    { NULL = -1, Begun, InProcedureDefinition }
+
+    private bool[] flagSet = new bool[FLAG_COUNT];
+    private bool[] internalFlagSet = new bool[INTERNAL_FLAG_COUNT];
+    private List<Command> commands = new List<Command>();
+
+    private Data data = new Data();
+    private Dictionary<string, int> procedures = new Dictionary<string, int>();
+    private Stack<int> pcProcedureStack = new Stack<int>();
+    private int programCounter;
+    private string accumulator;
+
+    #region Convenience Conditions
+
+    private bool F_IsInProcedureDefinition
     {
-        private const int FLAG_COUNT = 1;
-        private enum Flags
-        { NULL = -1, StringMode }
+        get => internalFlagSet[(int) InternalFlags.InProcedureDefinition];
+        set => internalFlagSet[(int) InternalFlags.InProcedureDefinition] = value;
+    }
 
-        private bool[] flagSet = new bool[FLAG_COUNT];
-        private List<Command> commands = new List<Command>();
+    private bool F_HasBegun
+    {
+        get => internalFlagSet[(int) InternalFlags.Begun];
+        set => internalFlagSet[(int) InternalFlags.Begun] = value;
+    }
 
-        private Data data = new Data();
-        private string accumulator;
-        private bool hasBegun = false;    // TODO: enforce begin/end check
+    #endregion
 
-        public Compiler(string accumulator = "")
+    public Compiler(string accumulator = "")
+    {
+        this.accumulator = accumulator;
+        CreateCommands();
+    }
+
+    public void Compile(List<List<string>> input)
+    {
+        for (programCounter = 0; programCounter < input.Count; programCounter++)
         {
-            this.accumulator = accumulator;
-            CreateCommands();
-        }
+            List<string> line = input[programCounter];
 
-        private void CreateCommands()
-        {
-            commands.Add(new Command(
-                "begin", "Denotes the start of the module.",
-                line =>
-                {
-                    hasBegun = true;
-                    return 0;
-                }));
-
-            commands.Add(new Command(
-                "end", "Denotes the end of the module.",
-                line =>
-                {
-                    hasBegun = false;
-                    return 0;
-                }));
-
-            commands.Add(new Command(
-                "def", "Defines an alias to a memory address.",
-                line =>
-                {
-                    string varName = line[1];
-                    string next = line[2];
-                    for (int i = 3; i < line.Count; ++i)
-                    {
-                        next += line[i];
-                    }
-
-                    try
-                    {
-                        var varIndex = ProcessAddress(next);
-                        data.AddNewVariable(varIndex, varName);
-                        return 0;
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine("pepehands");
-                        Console.WriteLine(e);
-                        return 1;
-                    }
-                }));
-
-            commands.Add(new Command(
-                "ld", "Loads a value into accumulator.",
-                line =>
-                {
-                    accumulator = ParseArguments(line[1]);
-                    return 0;
-                }));
-
-            commands.Add(new Command(
-                "sav", "Stores accumulated data into a memory address.",
-                line =>
-                {
-                    string varName = line[1];
-                    data.SetVariableValue(varName, accumulator);
-
-                    return 0;
-                }));
-
-            commands.Add(new Command(
-                "print", "Logs accumulator value to the terminal.",
-                line =>
-                {
-                    Console.WriteLine($"ACC : \"{accumulator}\"");
-                    return 0;
-                }));
-
-            commands.Add(new Command(
-                "add", "Adds a number to accumulator.",
-                line =>
-                {
-                    accumulator = (Convert.ToInt32(accumulator) +
-                                   Convert.ToInt32(ParseArguments(line[1]))
-                                   ).ToString();
-                    return 0;
-                }));
-
-
-            commands.Add(new Command(
-                "sub", "Subtracts a number from accumulator.",
-                line =>
-                {
-                    accumulator = (Convert.ToInt32(accumulator) -
-                                   Convert.ToInt32(ParseArguments(line[1]))
-                        ).ToString();
-                    return 0;
-                }));
-
-
-            commands.Add(new Command(
-                "mul", "Multiplies a number to accumulator.",
-                line =>
-                {
-                    accumulator = (Convert.ToInt32(accumulator) *
-                                   Convert.ToInt32(ParseArguments(line[1]))
-                        ).ToString();
-                    return 0;
-                }));
-
-
-            commands.Add(new Command(
-                "div", "Divides the accumulator by a given non-zero number.",
-                line =>
-                {
-                    int divisor = Convert.ToInt32(ParseArguments(line[1]));
-                    if (divisor == 0) return 1;
-                    accumulator = (Convert.ToInt32(accumulator) / divisor).ToString();
-                    return 0;
-                }));
-
-            commands.Add(new Command(
-                "setf", "Sets a specified flag.",
-                line =>
-                {
-                    int flag = Convert.ToInt32(line[1]);
-                    flagSet[flag] = true;
-                    return 0;
-                }));
-
-            commands.Add(new Command(
-                "rstf", "Resets a specified flag.",
-                line =>
-                {
-                    int flag = Convert.ToInt32(line[1]);
-                    flagSet[flag] = false;
-                    return 0;
-                }));
-
-            // commands.Add(new Command(
-            //     "", "",
-            //     line =>
-            //     {
-            //         return 0;
-            //     }));
-
-            // TODO: procedures
-
-            // commands.Add(new Command(
-            //     "", "",
-            //     line =>
-            //     {
-            //         return 0;
-            //     }));
-        }
-
-        public void Compile(List<List<string>> input)
-        {
-            for (var lineCount = 0; lineCount < input.Count; lineCount++)
+            if (line[0].StartsWith('#') || line[0] == "")
             {
-                List<string> line = input[lineCount];
-                // ShowParseInfo(line);
+                // # indicates a comment, and "" is empty line
+                // these are ignored
+                // Console.WriteLine("comment!");
+                continue;
+            }
 
-                if (line[0].StartsWith('#') || line[0] == "")
+            if (!F_HasBegun)
+            {
+                if (line[0].StartsWith("procdef"))
                 {
-                    // # indicates a comment, and \n is newline
-                    // these are ignored
-
-                    // Console.WriteLine("comment!");
+                    Console.WriteLine($"detected procedure {line[1]}");
+                    F_IsInProcedureDefinition = true; // elaborate here to avoid local functions
+                    procedures.Add(line[1], programCounter + 1);
                     continue;
                 }
-                else if (IsCommand(line[0], out int commandIndex))
+                if (F_IsInProcedureDefinition)
                 {
-                    ProcessCommand(commandIndex, line);
+                    if (line[0] == "endproc")
+                        F_IsInProcedureDefinition = false;
+                    continue;
                 }
-                else
-                {
-                    Console.WriteLine($"-----\nUNIDENTIFIED TOKEN ON LINE {lineCount+1}: \"{line[0]}\"\n-----\n");
-                }
-            }
-        }
 
-        private string ParseArguments(string token)
-        {
-            if (!flagSet[(int) Flags.StringMode] && data.TryGetVariableValue(token, out string value))
+
+            }
+
+            if (IsCommand(line[0], out int commandIndex))
             {
-                return value;
+                if (!F_HasBegun)
+                {
+                    if (commandIndex != 0)
+                        throw new Exception("no begin encountered"); // TODO: formalize errors
+                }
+
+                ProcessCommand(commandIndex, line);
             }
-
-            return token;
+            else
+            {
+                Console.WriteLine($"-----\nUNIDENTIFIED TOKEN ON LINE {programCounter + 1}: \"{line[0]}\"\n-----\n");
+            }
         }
+    }
 
-        // takes (&vars+20) and returns 20
-        private int ProcessAddress(string token)
+    private string ParseArguments(string token)
+    {
+        if (!flagSet[(int) Flags.StringMode] && data.TryGetVariableValue(token, out string value))
         {
-            // TODO: swap "vars" for other base addresses, add enum for other bases
-            Regex regex = new Regex(@"(.*)(&vars\+)(\d+)(.*)");
-            GroupCollection gc = regex.Match(token).Groups;
-            int value = Convert.ToInt32(
-                gc[3].Value);
             return value;
         }
 
-        // tests if string is in command list
-        private bool IsCommand(string token, out int index)
-        {
-            index = Command.commandList.IndexOf(token);
-            return index >= 0;
-        }
+        return token;
+    }
 
-        private void ProcessCommand(int commandIndex, List<string> line)
+    // takes (&vars+20) and returns 20
+    private int ProcessAddress(string token)
+    {
+        // TODO: swap "vars" for other base addresses, add enum for other bases
+        Regex regex = new Regex(@"(.*)(&\w+\+)(\d+)(.*)");
+        GroupCollection gc = regex.Match(token).Groups;
+        // Console.WriteLine(gc[2].Value);
+        int value = Convert.ToInt32(gc[3].Value);
+        return value;
+    }
+
+    #region Commands
+
+    private void CreateCommands()
+    {
+        commands.Add(new Command(
+            "begin", "Denotes the start of the module.",
+            line =>
+            {
+                F_HasBegun = true;
+                return 0;
+            }));
+
+        commands.Add(new Command(
+            "end", "Denotes the end of the module.",
+            line =>
+            {
+                F_HasBegun = false;
+                return 0;
+            }));
+
+        commands.Add(new Command(
+            "def", "Defines an alias to a memory address.",
+            line =>
+            {
+                string varName = line[1];
+                string next = line[2];
+                for (int i = 3; i < line.Count; ++i)
+                {
+                    next += line[i];
+                }
+
+                try
+                {
+                    int varIndex = ProcessAddress(next);
+                    data.AddNewVariable(varIndex, varName);
+                    return 0;
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("pepehands");
+                    Console.WriteLine(e);
+                    throw;
+                }
+            }));
+
+        commands.Add(new Command(
+            "ld", "Loads a value into accumulator.",
+            line =>
+            {
+                accumulator = ParseArguments(line[1]);
+                return 0;
+            }));
+
+        commands.Add(new Command(
+            "sav", "Stores accumulated data into a memory address.",
+            line =>
+            {
+                string varName = line[1];
+                data.SetVariableValue(varName, accumulator);
+
+                return 0;
+            }));
+
+        commands.Add(new Command(
+            "print", "Logs accumulator value to the terminal.",
+            line =>
+            {
+                Console.WriteLine($"ACC : \"{accumulator}\"");
+                return 0;
+            }));
+
+        #region Arithmetic Commands
+
+        commands.Add(new Command(
+            "add", "Adds a number to accumulator.",
+            line =>
+            {
+                accumulator = (Convert.ToInt32(accumulator) +
+                               Convert.ToInt32(ParseArguments(line[1]))
+                    ).ToString();
+                return 0;
+            }));
+
+
+        commands.Add(new Command(
+            "sub", "Subtracts a number from accumulator.",
+            line =>
+            {
+                accumulator = (Convert.ToInt32(accumulator) -
+                               Convert.ToInt32(ParseArguments(line[1]))
+                    ).ToString();
+                return 0;
+            }));
+
+
+        commands.Add(new Command(
+            "mul", "Multiplies a number to accumulator.",
+            line =>
+            {
+                accumulator = (Convert.ToInt32(accumulator) *
+                               Convert.ToInt32(ParseArguments(line[1]))
+                    ).ToString();
+                return 0;
+            }));
+
+
+        commands.Add(new Command(
+            "div", "Divides the accumulator by a given non-zero number.",
+            line =>
+            {
+                int divisor = Convert.ToInt32(ParseArguments(line[1]));
+                if (divisor == 0) return 1;
+                accumulator = (Convert.ToInt32(accumulator) / divisor).ToString();
+                return 0;
+            }));
+
+        // End "Arithmetic Commands"
+        #endregion
+
+        commands.Add(new Command(
+            "setf", "Sets a specified flag.",
+            line =>
+            {
+                int flag = Convert.ToInt32(line[1]);
+                flagSet[flag] = true;
+                return 0;
+            }));
+
+        commands.Add(new Command(
+            "rstf", "Resets a specified flag.",
+            line =>
+            {
+                int flag = Convert.ToInt32(line[1]);
+                flagSet[flag] = false;
+                return 0;
+            }));
+
+        commands.Add(new Command(
+            "proc", "Calls a previously declared procedure.",
+            line =>
+            {
+                pcProcedureStack.Push(programCounter);
+                programCounter = procedures[line[1]];
+                return 0;
+            }));
+
+        commands.Add(new Command(
+            "endproc", "Returns control to parent procedure.",
+            line =>
+            {
+                programCounter = pcProcedureStack.Pop();
+                return 0;
+            }));
+
+        // commands.Add(new Command(
+        //     "", "",
+        //     line =>
+        //     {
+        //         return 0;
+        //     }));
+
+        // commands.Add(new Command(
+        //     "", "",
+        //     line =>
+        //     {
+        //         return 0;
+        //     }));
+    }
+
+    // tests if token is in command list
+    private bool IsCommand(string token, out int index)
+    {
+        index = Command.commandList.IndexOf(token);
+        return index >= 0;
+    }
+
+    private void ProcessCommand(int commandIndex, List<string> line)
+    {
+        // TODO: handle errors
+        try
         {
             commands[commandIndex].action.Invoke(line);
         }
-
-        #region Debugging Utilities
-
-        private void ShowParseInfo(List<string> line)
+        catch (Exception e)
         {
-            // return;
-
-            Console.WriteLine("----------");
-            Console.Write($"Line: ");
-            for (int i = 0; i < line.Count; i++)
-            {
-                Console.Write($"\"{line[i]}\" ");
-            }
-            // Console.WriteLine("----------");
-            Console.WriteLine();
+            Console.WriteLine(e);
+            throw;
         }
-
-        #endregion
     }
+
+    // End "Commands"
+    #endregion
+
+    #region Debugging Utilities
+
+    private void ShowParseInfo(List<string> line)
+    {
+        // return;
+
+        Console.WriteLine("----------");
+        Console.Write($"Line: ");
+        for (int i = 0; i < line.Count; i++)
+        {
+            Console.Write($"\"{line[i]}\" ");
+        }
+        // Console.WriteLine("----------");
+        Console.WriteLine();
+    }
+
+    #endregion
+}
 }

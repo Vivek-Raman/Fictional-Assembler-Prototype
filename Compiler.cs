@@ -12,6 +12,7 @@ namespace Compiler
 
         private bool[] flagSet = new bool[FLAG_COUNT];
         private List<Command> commands = new List<Command>();
+
         private Data data = new Data();
         private string accumulator;
         private bool hasBegun = false;    // TODO: enforce begin/end check
@@ -20,32 +21,6 @@ namespace Compiler
         {
             this.accumulator = accumulator;
             CreateCommands();
-        }
-
-        public void Compile(List<List<string>> input)
-        {
-            for (var lineCount = 0; lineCount < input.Count; lineCount++)
-            {
-                List<string> line = input[lineCount];
-                // ShowParseInfo(line);
-
-                if (line[0].StartsWith('#') || line[0] == "")
-                {
-                    // # indicates a comment, and \n is newline
-                    // these are ignored
-
-                    // Console.WriteLine("comment!");
-                    continue;
-                }
-                else if (IsCommand(line[0], out int commandIndex))
-                {
-                    ProcessCommand(commandIndex, line);
-                }
-                else
-                {
-                    Console.WriteLine($"-----\nUNIDENTIFIED TOKEN ON LINE {lineCount+1}: \"{line[0]}\"\n-----\n");
-                }
-            }
         }
 
         private void CreateCommands()
@@ -160,6 +135,24 @@ namespace Compiler
                     return 0;
                 }));
 
+            commands.Add(new Command(
+                "setf", "Sets a specified flag.",
+                line =>
+                {
+                    int flag = Convert.ToInt32(line[1]);
+                    flagSet[flag] = true;
+                    return 0;
+                }));
+
+            commands.Add(new Command(
+                "rstf", "Resets a specified flag.",
+                line =>
+                {
+                    int flag = Convert.ToInt32(line[1]);
+                    flagSet[flag] = false;
+                    return 0;
+                }));
+
             // commands.Add(new Command(
             //     "", "",
             //     line =>
@@ -175,6 +168,32 @@ namespace Compiler
             //     {
             //         return 0;
             //     }));
+        }
+
+        public void Compile(List<List<string>> input)
+        {
+            for (var lineCount = 0; lineCount < input.Count; lineCount++)
+            {
+                List<string> line = input[lineCount];
+                // ShowParseInfo(line);
+
+                if (line[0].StartsWith('#') || line[0] == "")
+                {
+                    // # indicates a comment, and \n is newline
+                    // these are ignored
+
+                    // Console.WriteLine("comment!");
+                    continue;
+                }
+                else if (IsCommand(line[0], out int commandIndex))
+                {
+                    ProcessCommand(commandIndex, line);
+                }
+                else
+                {
+                    Console.WriteLine($"-----\nUNIDENTIFIED TOKEN ON LINE {lineCount+1}: \"{line[0]}\"\n-----\n");
+                }
+            }
         }
 
         private string ParseArguments(string token)

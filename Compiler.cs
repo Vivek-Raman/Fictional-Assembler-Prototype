@@ -63,7 +63,7 @@ public class Compiler
             {
                 if (line[0].StartsWith("procdef"))
                 {
-                    Console.WriteLine($"detected procedure {line[1]}");
+                    // Console.WriteLine($"detected procedure {line[1]}");
                     F_IsInProcedureDefinition = true; // elaborate here to avoid local functions
                     procedures.Add(line[1], programCounter + 1);
                     continue;
@@ -103,17 +103,6 @@ public class Compiler
         }
 
         return token;
-    }
-
-    // takes (&vars+20) and returns 20
-    private int ProcessAddress(string token)
-    {
-        // TODO: swap "vars" for other base addresses, add enum for other bases
-        Regex regex = new Regex(@"(.*)(&\w+\+)(\d+)(.*)");
-        GroupCollection gc = regex.Match(token).Groups;
-        // Console.WriteLine(gc[2].Value);
-        int value = Convert.ToInt32(gc[3].Value);
-        return value;
     }
 
     #region Commands
@@ -235,6 +224,8 @@ public class Compiler
         // End "Arithmetic Commands"
         #endregion
 
+        #region Flag Manipulation
+
         commands.Add(new Command(
             "setf", "Sets a specified flag.",
             line =>
@@ -253,6 +244,10 @@ public class Compiler
                 return 0;
             }));
 
+        #endregion
+
+        #region Procedure Execution
+
         commands.Add(new Command(
             "proc", "Calls a previously declared procedure.",
             line =>
@@ -269,6 +264,8 @@ public class Compiler
                 programCounter = pcProcedureStack.Pop();
                 return 0;
             }));
+
+        #endregion
 
         // commands.Add(new Command(
         //     "", "",
@@ -308,6 +305,17 @@ public class Compiler
 
     // End "Commands"
     #endregion
+
+    // takes (&vars+20) and returns 20
+    private int ProcessAddress(string token)
+    {
+        // TODO: swap "vars" for other base addresses, add enum for other bases
+        Regex regex = new Regex(@"(.*)(&\w+\+)(\d+)(.*)");
+        GroupCollection gc = regex.Match(token).Groups;
+        // Console.WriteLine(gc[2].Value);
+        int value = Convert.ToInt32(gc[3].Value);
+        return value;
+    }
 
     #region Debugging Utilities
 

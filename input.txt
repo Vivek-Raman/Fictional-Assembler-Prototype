@@ -30,4 +30,10 @@ print
 proc testproc
 print
 
+dump
+setf 0
+dump
+rstf 0
+dump
+
 end

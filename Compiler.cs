@@ -6,15 +6,19 @@ namespace Compiler
 {
 public class Compiler
 {
+    #region Flag Management
+
     private const int FLAG_COUNT = 1;
     private const int INTERNAL_FLAG_COUNT = 2;
     private enum Flags
     { NULL = -1, StringMode }
     private enum InternalFlags
     { NULL = -1, Begun, InProcedureDefinition }
-
     private bool[] flagSet = new bool[FLAG_COUNT];
     private bool[] internalFlagSet = new bool[INTERNAL_FLAG_COUNT];
+    
+    #endregion
+    
     private List<Command> commands = new List<Command>();
 
     private Data data = new Data();
@@ -47,7 +51,7 @@ public class Compiler
 
     public void Compile(List<List<string>> input)
     {
-        for (programCounter = 0; programCounter < input.Count; programCounter++)
+        for (programCounter = 0; programCounter < input.Count; ++programCounter)
         {
             List<string> line = input[programCounter];
 
@@ -122,6 +126,24 @@ public class Compiler
             line =>
             {
                 F_HasBegun = false;
+                return 0;
+            }));
+
+        commands.Add(new Command(
+            "dump", "Provides a dump of the current state of memory.",
+            line =>
+            {
+                Console.WriteLine("-----DUMP-----");
+                Console.WriteLine($"ACC : {accumulator}");
+                Console.WriteLine($"PC  : {programCounter}");
+
+                Console.WriteLine("Flags: ");
+
+                for (int i = 0; i < flagSet.Length; i++)
+                {
+                    Console.WriteLine($"{(Flags) i} : {flagSet[i]}");
+                }
+                Console.WriteLine("---END-DUMP---");
                 return 0;
             }));
 

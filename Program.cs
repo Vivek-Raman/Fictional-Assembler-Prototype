@@ -12,7 +12,10 @@ namespace Compiler
         static void Main(string[] args)
         {
             Console.Clear();
-            Console.WriteLine("-----------");
+            Console.WriteLine("-----------------");
+            Console.WriteLine("--- ASSEMBLER ---");
+            Console.WriteLine("-----------------");
+            Console.WriteLine();
             Compiler compiler = new Compiler();
 
             // get input

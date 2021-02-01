@@ -395,4 +395,12 @@ crashlytics.properties
 crashlytics-build.properties
 fabric.properties
 
+### vscode ###
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
 # End of https://www.toptal.com/developers/gitignore/api/csharp,rider,dotnetcore

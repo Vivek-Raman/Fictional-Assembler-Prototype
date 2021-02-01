@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Compiler
 {
-    class Command
+    public class Command
     {
         public static List<string> commandList = new List<string>();
 

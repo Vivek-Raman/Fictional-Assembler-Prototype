@@ -1,4 +1,27 @@
-﻿procdef omfg
+﻿###################
+###################
+###################
+###################
+### 
+
+
+###################
+### Jumping test
+
+begin
+ld 40
+print
+dump
+jmp 7
+dump
+print
+end
+
+###################
+
+### Procedure test
+
+procdef omfg
 ld a
 mul 2
 sav a
@@ -11,7 +34,6 @@ sav a
 proc omfg
 endproc
 
-
 begin
 def a       (&vars + 1)
 
@@ -23,17 +45,11 @@ print
 
 proc testproc
 print
-
+proc testproc
+print
 proc testproc
 print
 
-proc testproc
-print
-
 dump
-setf 0
-dump
-rstf 0
-dump
-
+help
 end

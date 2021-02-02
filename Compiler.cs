@@ -9,18 +9,17 @@ public class Compiler
     #region Flag Management
 
     private const int FLAG_COUNT = 1;
-    private const int INTERNAL_FLAG_COUNT = 2;
+    private const int INTERNAL_FLAG_COUNT = 3;
     private enum Flags
     { NULL = -1, StringMode }
     private enum InternalFlags
-    { NULL = -1, Begun, InProcedureDefinition }
+    { NULL = -1, Begun, InProcedureDefinition, ScheduleEnd }
     private bool[] flagSet = new bool[FLAG_COUNT];
     private bool[] internalFlagSet = new bool[INTERNAL_FLAG_COUNT];
     
     #endregion
     
     private List<Command> commands = new List<Command>();
-
     private Data data = new Data();
     private Dictionary<string, int> procedures = new Dictionary<string, int>();
     private Stack<int> pcProcedureStack = new Stack<int>();
@@ -39,6 +38,12 @@ public class Compiler
     {
         get => internalFlagSet[(int) InternalFlags.Begun];
         set => internalFlagSet[(int) InternalFlags.Begun] = value;
+    }
+
+    private bool F_MustEnd
+    {
+        get => internalFlagSet[(int) InternalFlags.ScheduleEnd];
+        set => internalFlagSet[(int) InternalFlags.ScheduleEnd] = value;
     }
 
     #endregion
@@ -62,6 +67,8 @@ public class Compiler
                 // Console.WriteLine("comment!");
                 continue;
             }
+
+            if (F_MustEnd) return;
 
             if (!F_HasBegun)
             {
@@ -99,16 +106,6 @@ public class Compiler
         }
     }
 
-    private string ParseArguments(string token)
-    {
-        if (!flagSet[(int) Flags.StringMode] && data.TryGetVariableValue(token, out string value))
-        {
-            return value;
-        }
-
-        return token;
-    }
-
     #region Commands
 
     private void CreateCommands()
@@ -126,41 +123,28 @@ public class Compiler
             line =>
             {
                 F_HasBegun = false;
+                F_MustEnd = true;
                 return 0;
             }));
 
-        commands.Add(new Command(
-            "dump", "Provides a dump of the current state of memory.",
-            line =>
-            {
-                Console.WriteLine("-----DUMP-----");
-                Console.WriteLine($"ACC : {accumulator}");
-                Console.WriteLine($"PC  : {programCounter}");
+        
 
-                Console.WriteLine("Flags: ");
-
-                for (int i = 0; i < flagSet.Length; i++)
-                {
-                    Console.WriteLine($"{(Flags) i} : {flagSet[i]}");
-                }
-                Console.WriteLine("---END-DUMP---");
-                return 0;
-            }));
+        #region Data Management
 
         commands.Add(new Command(
             "def", "Defines an alias to a memory address.",
             line =>
             {
                 string varName = line[1];
-                string next = line[2];
+                string address = line[2];
                 for (int i = 3; i < line.Count; ++i)
                 {
-                    next += line[i];
+                    address += line[i];
                 }
 
                 try
                 {
-                    int varIndex = ProcessAddress(next);
+                    int varIndex = ProcessAddress(address);
                     data.AddNewVariable(varIndex, varName);
                     return 0;
                 }
@@ -190,13 +174,8 @@ public class Compiler
                 return 0;
             }));
 
-        commands.Add(new Command(
-            "print", "Logs accumulator value to the terminal.",
-            line =>
-            {
-                Console.WriteLine($"ACC : \"{accumulator}\"");
-                return 0;
-            }));
+        // end "Data Management"
+        #endregion        
 
         #region Arithmetic Commands
 
@@ -266,6 +245,7 @@ public class Compiler
                 return 0;
             }));
 
+        // end "Flag Manipulation"
         #endregion
 
         #region Procedure Execution
@@ -287,6 +267,57 @@ public class Compiler
                 return 0;
             }));
 
+        // end "Procedure Execution"
+        #endregion
+
+        #region Branching Commands
+
+        commands.Add(new Command(
+            "cmp", "Returns the sign of the difference between ACC and the given value.",
+            line =>
+            {
+                int difference = (Convert.ToInt32(accumulator) -
+                                  Convert.ToInt32(ParseArguments(line[1])));
+                accumulator = Math.Sign(difference).ToString();
+                return 0;
+            }));
+
+        commands.Add(new Command(
+            "jmp", "Jumps program control to the given line.",
+            line =>
+            {
+                JumpToLine_OneIndexed(Convert.ToInt32(line[1]));
+                return 0;
+            }));
+
+        commands.Add(new Command(
+            "jaz", "Jumps to the given line if ACC is zero.",
+            line =>
+            {
+                if (Convert.ToInt32(accumulator) == 0)
+                    JumpToLine_OneIndexed(Convert.ToInt32(line[1]));
+                return 0;
+            }));
+
+        commands.Add(new Command(
+            "jap", "Jumps to the given line if ACC is positive.",
+            line =>
+            {
+                if (Convert.ToInt32(accumulator) > 0)
+                    JumpToLine_OneIndexed(Convert.ToInt32(line[1]));
+                return 0;
+            }));
+
+        commands.Add(new Command(
+            "jan", "Jumps to the given line if ACC is negative.",
+            line =>
+            {
+                if (Convert.ToInt32(accumulator) < 0)
+                    JumpToLine_OneIndexed(Convert.ToInt32(line[1]));
+                return 0;
+            }));
+            
+        // End "Branching Commands"
         #endregion
 
         // commands.Add(new Command(
@@ -302,6 +333,57 @@ public class Compiler
         //     {
         //         return 0;
         //     }));
+
+        #region Utility Commands
+
+        commands.Add(new Command(
+            "dump", "Provides a dump of the current state of memory.",
+            line =>
+            {
+                Console.WriteLine("----- DUMP -----");
+                Console.WriteLine($"ACC   : {accumulator}");
+                Console.WriteLine($"PC    : {programCounter}");
+
+                Console.WriteLine("DATA  : ");
+                foreach (var variable in data.varsTable)
+                {
+                    Console.WriteLine($"&{variable.Key} \"{variable.Value.Name}\" : {variable.Value.GetValue()}");
+                }
+
+                Console.WriteLine("FLAGS : ");
+                for (int i = 0; i < flagSet.Length; i++)
+                {
+                    Console.WriteLine($"{(Flags) i} : {flagSet[i]}");
+                }
+                Console.WriteLine("--- END-DUMP ---");
+                return 0;
+            }));
+
+        commands.Add(new Command(
+            "print", "Logs accumulator value to the terminal.",
+            line =>
+            {
+                Console.WriteLine($"ACC : \"{accumulator}\"");
+                return 0;
+            }));
+
+        commands.Add(new Command(
+            "help", "Prints a list of available commands to the terminal.",
+            line =>
+            {
+                Console.WriteLine("-----------");
+                Console.WriteLine("LIST OF COMMANDS");
+                Console.WriteLine($"Count: {commands.Count}");
+                foreach(Command command in commands)
+                {
+                    Console.WriteLine($"{command.name}\t{command.description}");
+                }
+                Console.WriteLine("-----------");
+                return 0;
+            }));
+
+        // end "Utility Commands"
+        #endregion
     }
 
     // tests if token is in command list
@@ -316,7 +398,11 @@ public class Compiler
         // TODO: handle errors
         try
         {
-            commands[commandIndex].action.Invoke(line);
+            int result = commands[commandIndex].action.Invoke(line);
+            if (result != 0)
+            {
+                Console.WriteLine($"Command \"{commands[commandIndex].name} returned error code \"{result}\".");
+            }
         }
         catch (Exception e)
         {
@@ -337,6 +423,23 @@ public class Compiler
         // Console.WriteLine(gc[2].Value);
         int value = Convert.ToInt32(gc[3].Value);
         return value;
+    }
+
+    private string ParseArguments(string token)
+    {
+        if (!flagSet[(int) Flags.StringMode] && data.TryGetVariableValue(token, out string value))
+        {
+            return value;
+        }
+
+        return token;
+    }
+
+    private void JumpToLine_OneIndexed(int line)
+    {
+        // one for index base adjustment
+        // one for loop counter increment
+        programCounter = line - 2;
     }
 
     #region Debugging Utilities

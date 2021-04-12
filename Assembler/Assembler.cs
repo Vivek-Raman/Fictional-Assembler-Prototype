@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
-namespace Compiler
+namespace AssemblerLibrary
 {
-public class Compiler
+public class Assembler
 {
     #region Flag Management
 
@@ -48,7 +48,7 @@ public class Compiler
 
     #endregion
 
-    public Compiler(string accumulator = "")
+    public Assembler(string accumulator = "")
     {
         this.accumulator = accumulator;
         CreateCommands();

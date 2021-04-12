@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Compiler
+namespace AssemblerLibrary
 {
     public class Variable
     {

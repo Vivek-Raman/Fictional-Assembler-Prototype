@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Compiler
+namespace AssemblerLibrary
 {
     public class Command
     {

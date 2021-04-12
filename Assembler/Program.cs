@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace Compiler
+namespace AssemblerLibrary
 {
     public class Program
     {
@@ -16,7 +16,7 @@ namespace Compiler
             Console.WriteLine("--- ASSEMBLER ---");
             Console.WriteLine("-----------------");
             Console.WriteLine();
-            Compiler compiler = new Compiler();
+            Assembler assembler = new Assembler();
 
             // get input
             List<List<string>> input = new List<List<string>>();
@@ -28,7 +28,7 @@ namespace Compiler
                 input.Add(toAdd);
             }
 
-            compiler.Compile(input);
+            assembler.Compile(input);
 
             Console.WriteLine("Reached end of program.");
         }

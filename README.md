@@ -3,7 +3,7 @@
 
  If you wanna try it out, fork+clone and open the `.sln` file with Rider or Visual Studio. 
 
- This requires the .NET SDK v3.1 or above to run.
+ This requires the .NET Framework v2.0 or above to run.
  You can then Run or Debug it in the IDE.
 
  https://www.instagram.com/p/CNqTZbZDzp6/

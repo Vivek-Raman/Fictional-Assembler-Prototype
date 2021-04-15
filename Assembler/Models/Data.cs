@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace AssemblerLibrary
+namespace AssemblerLibrary.Models
 {
     public class Data
     {

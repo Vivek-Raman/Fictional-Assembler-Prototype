@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
+
+using AssemblerLibrary.Models;
+using AssemblerLibrary.Utils;
 
 namespace AssemblerLibrary
 {
@@ -18,13 +20,20 @@ public class Assembler
     private bool[] internalFlagSet = new bool[INTERNAL_FLAG_COUNT];
     
     #endregion
-    
+
+    #region Data
+
     private List<Command> commands = new List<Command>();
     private Data data = new Data();
     private Dictionary<string, int> procedures = new Dictionary<string, int>();
     private Stack<int> pcProcedureStack = new Stack<int>();
     private int programCounter;
     private string accumulator;
+
+    private Logger logger = null;
+
+    // End "Data"
+    #endregion
 
     #region Convenience Conditions
 
@@ -46,7 +55,10 @@ public class Assembler
         set => internalFlagSet[(int) InternalFlags.ScheduleEnd] = value;
     }
 
+    // End "Convenience Conditions"
     #endregion
+
+    #region Public Methods
 
     public Assembler(string accumulator = "")
     {
@@ -54,17 +66,24 @@ public class Assembler
         CreateCommands();
     }
 
-    public void Compile(List<List<string>> input)
+    // called by Unity
+    public void Compile(string[] code, Logger loggerInstance)
+    {
+        logger = loggerInstance;
+        Compile(Utilities.ConvertLinesTo2DArray(code));
+    }
+
+    private void Compile(List<List<string>> input)
     {
         for (programCounter = 0; programCounter < input.Count; ++programCounter)
         {
             List<string> line = input[programCounter];
 
-            if (line[0].StartsWith('#') || line[0] == "")
+            if (line[0].StartsWith("#") || line[0] == "")
             {
                 // # indicates a comment, and "" is empty line
                 // these are ignored
-                // Console.WriteLine("comment!");
+                // logger.Log("comment!");
                 continue;
             }
 
@@ -74,9 +93,9 @@ public class Assembler
             {
                 if (line[0].StartsWith("procdef"))
                 {
-                    // Console.WriteLine($"detected procedure {line[1]}");
+                    // logger.Log($"detected procedure {line[1]}");
                     F_IsInProcedureDefinition = true; // elaborate here to avoid local functions
-                    procedures.Add(line[1], programCounter + 1);
+                    procedures.Add(line[1], programCounter);
                     continue;
                 }
                 if (F_IsInProcedureDefinition)
@@ -85,8 +104,6 @@ public class Assembler
                         F_IsInProcedureDefinition = false;
                     continue;
                 }
-
-
             }
 
             if (IsCommand(line[0], out int commandIndex))
@@ -101,10 +118,13 @@ public class Assembler
             }
             else
             {
-                Console.WriteLine($"-----\nUNIDENTIFIED TOKEN ON LINE {programCounter + 1}: \"{line[0]}\"\n-----\n");
+                logger.Log($"-----\nUNIDENTIFIED TOKEN ON LINE {programCounter + 1}: \"{line[0]}\"\n-----\n");
             }
         }
     }
+
+    // End "Public Methods"
+    #endregion
 
     #region Commands
 
@@ -127,8 +147,6 @@ public class Assembler
                 return 0;
             }));
 
-        
-
         #region Data Management
 
         commands.Add(new Command(
@@ -144,14 +162,14 @@ public class Assembler
 
                 try
                 {
-                    int varIndex = ProcessAddress(address);
+                    int varIndex = Utilities.ProcessAddress(address);
                     data.AddNewVariable(varIndex, varName);
                     return 0;
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("pepehands");
-                    Console.WriteLine(e);
+                    logger.Log("pepehands");
+                    logger.Log(e);
                     throw;
                 }
             }));
@@ -175,7 +193,7 @@ public class Assembler
             }));
 
         // end "Data Management"
-        #endregion        
+        #endregion
 
         #region Arithmetic Commands
 
@@ -251,7 +269,7 @@ public class Assembler
         #region Procedure Execution
 
         commands.Add(new Command(
-            "proc", "Calls a previously declared procedure.",
+            "proc", "Calls a previously declared procedure. Create procedure with procdef <proc name>",
             line =>
             {
                 pcProcedureStack.Push(programCounter);
@@ -316,7 +334,7 @@ public class Assembler
                     JumpToLine_OneIndexed(Convert.ToInt32(line[1]));
                 return 0;
             }));
-            
+
         // End "Branching Commands"
         #endregion
 
@@ -340,22 +358,22 @@ public class Assembler
             "dump", "Provides a dump of the current state of memory.",
             line =>
             {
-                Console.WriteLine("----- DUMP -----");
-                Console.WriteLine($"ACC   : {accumulator}");
-                Console.WriteLine($"PC    : {programCounter}");
+                logger.Log("----- DUMP -----");
+                logger.Log($"ACC   : {accumulator}");
+                logger.Log($"PC    : {programCounter}");
 
-                Console.WriteLine("DATA  : ");
+                logger.Log("DATA  : ");
                 foreach (var variable in data.varsTable)
                 {
-                    Console.WriteLine($"&{variable.Key} \"{variable.Value.Name}\" : {variable.Value.GetValue()}");
+                    logger.Log($"&{variable.Key} \"{variable.Value.Name}\" : {variable.Value.GetValue()}");
                 }
 
-                Console.WriteLine("FLAGS : ");
+                logger.Log("FLAGS : ");
                 for (int i = 0; i < flagSet.Length; i++)
                 {
-                    Console.WriteLine($"{(Flags) i} : {flagSet[i]}");
+                    logger.Log($"{(Flags) i} : {flagSet[i]}");
                 }
-                Console.WriteLine("--- END-DUMP ---");
+                logger.Log("--- END-DUMP ---");
                 return 0;
             }));
 
@@ -363,7 +381,7 @@ public class Assembler
             "print", "Logs accumulator value to the terminal.",
             line =>
             {
-                Console.WriteLine($"ACC : \"{accumulator}\"");
+                logger.Log($"ACC : \"{accumulator}\"");
                 return 0;
             }));
 
@@ -371,14 +389,14 @@ public class Assembler
             "help", "Prints a list of available commands to the terminal.",
             line =>
             {
-                Console.WriteLine("-----------");
-                Console.WriteLine("LIST OF COMMANDS");
-                Console.WriteLine($"Count: {commands.Count}");
+                logger.Log("-----------");
+                logger.Log("LIST OF COMMANDS");
+                logger.Log($"Count: {commands.Count}");
                 foreach(Command command in commands)
                 {
-                    Console.WriteLine($"{command.name}\t{command.description}");
+                    logger.Log($"{command.name}\t{command.description}");
                 }
-                Console.WriteLine("-----------");
+                logger.Log("-----------");
                 return 0;
             }));
 
@@ -401,12 +419,12 @@ public class Assembler
             int result = commands[commandIndex].action.Invoke(line);
             if (result != 0)
             {
-                Console.WriteLine($"Command \"{commands[commandIndex].name} returned error code \"{result}\".");
+                logger.Log($"Command \"{commands[commandIndex].name} returned error code \"{result}\".");
             }
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
+            logger.Log(e);
             throw;
         }
     }
@@ -414,15 +432,13 @@ public class Assembler
     // End "Commands"
     #endregion
 
-    // takes (&vars+20) and returns 20
-    private int ProcessAddress(string token)
+    #region Utility Methods
+
+    private void ResetCompiler()
     {
-        // TODO: swap "vars" for other base addresses, add enum for other bases
-        Regex regex = new Regex(@"(.*)(&\w+\+)(\d+)(.*)");
-        GroupCollection gc = regex.Match(token).Groups;
-        // Console.WriteLine(gc[2].Value);
-        int value = Convert.ToInt32(gc[3].Value);
-        return value;
+        F_HasBegun = false;
+        F_MustEnd = false;
+        F_IsInProcedureDefinition = false;
     }
 
     private string ParseArguments(string token)
@@ -442,20 +458,22 @@ public class Assembler
         programCounter = line - 2;
     }
 
+    #endregion
+
     #region Debugging Utilities
 
     private void ShowParseInfo(List<string> line)
     {
         // return;
 
-        Console.WriteLine("----------");
+        logger.Log("----------");
         Console.Write($"Line: ");
         for (int i = 0; i < line.Count; i++)
         {
             Console.Write($"\"{line[i]}\" ");
         }
-        // Console.WriteLine("----------");
-        Console.WriteLine();
+        // logger.Log("----------");
+        // logger.Log();
     }
 
     #endregion

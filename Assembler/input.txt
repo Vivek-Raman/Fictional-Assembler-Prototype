@@ -1,13 +1,13 @@
 ﻿### Jumping test
 
-begin
-ld 40
-print
-dump
+#begin
+#ld 40
+#print
+#dump
 #jmp 7
 #dump
-print
-end
+#print
+#end
 
 ###################
 
@@ -35,13 +35,9 @@ ld 40
 sav a
 print
 
+ld 1
 proc testproc
-print
-proc testproc
-print
-proc testproc
+ld a
 print
 
-dump
-help
 end
